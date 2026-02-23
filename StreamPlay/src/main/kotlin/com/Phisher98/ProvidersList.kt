@@ -126,7 +126,7 @@ fun buildProviders(): List<Provider> {
             if (!res.isBollywood) invokeVegamovies(res.imdbId, res.season, res.episode, subtitleCallback, callback)
         },
         Provider("Rogmovies", "RogMovies (Multi)") { res, subtitleCallback, callback, _, _ ->
-            if (res.isBollywood) invokeRogmovies(res.imdbId, res.season, res.episode, subtitleCallback, callback)
+            if (res.isBollywood) invokeRogmovies(res.title, res.imdbId, res.season, res.episode, subtitleCallback, callback)
         },
         Provider("multimovies", "MultiMovies (Multi)") { res, subtitleCallback, callback, _, _ ->
             if (!res.isAnime) invokeMultimovies(res.title, res.season, res.episode, subtitleCallback, callback)

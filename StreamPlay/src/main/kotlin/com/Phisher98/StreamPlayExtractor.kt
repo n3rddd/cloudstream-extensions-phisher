@@ -2420,7 +2420,7 @@ object StreamPlayExtractor : StreamPlay() {
                 res.select("button.dwd-button").amap {
                     val link = it.parent()?.attr("href") ?: return@amap
                     val doc = app.get(link, referer = api, headers = headers).document
-                    val source = doc.selectFirst("button.btn:matches((?i)(V-Cloud))")
+                    val source = doc.selectFirst("button.btn:matches((?i)(V-Cloud|G-Direct))")
                         ?.parent()
                         ?.attr("href")
                         ?: return@amap
@@ -2435,11 +2435,8 @@ object StreamPlayExtractor : StreamPlay() {
                         val doc = app.get(targetHref, referer = api, headers = headers).document
                         val epElement = doc.selectFirst("h4:contains(Episode):contains($episode)") ?: return@amap
                         val epLink = epElement.nextElementSibling()?.selectFirst("a:matches((?i)(V-Cloud|Single|Episode|G-Direct))")?.attr("href")
-                        if (epLink != null) { loadSourceNameExtractor("VegaMovies", epLink, referer = "", subtitleCallback, callback)
-                        } else
-                        {
-                            Log.e("VegaMovies", "V-Cloud link missing for episode $episode")
-                        }
+                        if (epLink != null) { loadSourceNameExtractor("VegaMovies", epLink, referer = "", subtitleCallback, callback) }
+                        else { Log.e("VegaMovies", "V-Cloud link missing for episode $episode") }
                     }
                 }
             }
@@ -2448,6 +2445,7 @@ object StreamPlayExtractor : StreamPlay() {
 
 
     suspend fun invokeRogmovies(
+        title: String? = null,
         id: String? = null,
         season: Int? = null,
         episode: Int? = null,
@@ -2470,29 +2468,65 @@ object StreamPlayExtractor : StreamPlay() {
         )
 
         val api = getDomains()?.rogmovies
-        Log.d("Phisher",api.toString())
-        val url = "$api/search.php?q=${id ?: return}"
+        val idUrl = "$api/search.php?q=$id"
 
-        app.get(
-            url,
+        var searchRes = app.get(
+            idUrl,
             referer = api,
             headers = headers
-        ).parsedSafe<VegamoviesResponse>()?.hits
-            ?.mapNotNull { it.document }
-            ?.filter { it.imdb_id.equals(id, ignoreCase = true) }
-            ?.amap { doc ->
-                val permalink = doc.permalink ?: return@amap
-                val fullUrl = api + permalink
-                val res = app.get(
-                    fullUrl,
-                    referer = api,
-                    headers = headers
-                ).document
+        ).parsedSafe<VegamoviesResponse>()?.hits?.mapNotNull { it.document } ?: emptyList()
+
+        if (searchRes.isEmpty() && !title.isNullOrBlank()) {
+            val titleUrl = "$api/search.php?q=${title}"
+            searchRes = app.get(
+                titleUrl,
+                referer = api,
+                headers = headers
+            ).parsedSafe<VegamoviesResponse>()
+                ?.hits
+                ?.mapNotNull { it.document }
+                ?: emptyList()
+        }
+
+        if (searchRes.isEmpty()) return
+        var filtered = searchRes.filter {
+            !id.isNullOrBlank() && it.imdb_id.equals(id, true)
+        }
+        if (filtered.isEmpty() && !title.isNullOrBlank()) {
+            val keywords = title
+                .lowercase()
+                .replace(Regex("[^a-z0-9 ]"), "")
+                .split(" ")
+                .filter { it.length > 2 }
+
+            filtered = searchRes.filter { doc ->
+                val docTitle = doc.post_title
+                    ?.lowercase()
+                    ?.replace(Regex("[^a-z0-9 ]"), "")
+                    ?: return@filter false
+
+                keywords.any { docTitle.contains(it) }
+            }
+        }
+
+        if (filtered.isEmpty()) {
+            filtered = searchRes
+        }
+
+        filtered.amap { doc ->
+            val permalink = doc.permalink ?: return@amap
+            val fullUrl = api + permalink
+            val res = app.get(
+                fullUrl,
+                referer = api,
+                headers = headers
+            ).document
+
             if(season == null) {
                 res.select("button.dwd-button").amap {
                     val link = it.parent()?.attr("href") ?: return@amap
                     val doc = app.get(link, referer = api, headers = headers).document
-                    val source = doc.selectFirst("button.btn:matches((?i)(V-Cloud))")
+                    val source = doc.selectFirst("button.btn:matches((?i)(V-Cloud|G-Direct))")
                         ?.parent()
                         ?.attr("href")
                         ?: return@amap
