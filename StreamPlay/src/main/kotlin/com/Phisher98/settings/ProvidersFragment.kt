@@ -110,21 +110,21 @@ class ProvidersFragment(
         providers.forEach { provider ->
             val item = getLayout("item_provider_checkbox", layoutInflater, container)
             val chk = item.findViewById<CheckBox>(chkId)
-
-            chk.tag = provider.id   // REQUIRED FIX
-
+            item.makeTvCompatible()
+            chk.makeTvCompatible()
             chk.text = provider.name
+            // Enabled if NOT in disabled list
             chk.isChecked = !adapter.isDisabled(provider.id)
 
             item.setOnClickListener { chk.toggle() }
 
             chk.setOnCheckedChangeListener { _, isChecked ->
+                // Checked → remove from disabled, Unchecked → add to disabled
                 adapter.setDisabled(provider.id, !isChecked)
             }
 
             container.addView(item)
         }
-
         container.post {
             if (container.isNotEmpty()) {
                 val firstItem = container.getChildAt(0)
@@ -238,18 +238,9 @@ class ProvidersFragment(
 
     private fun updateUI() {
         val chkId = res.getIdentifier("chk_provider", "id", BuildConfig.LIBRARY_PACKAGE_NAME)
-
         for (i in 0 until container.childCount) {
-            val item = container.getChildAt(i)
-            val chk = item.findViewById<CheckBox>(chkId)
-
-            val providerId = chk.tag as? String ?: continue
-
-            chk.setOnCheckedChangeListener(null)
-            chk.isChecked = !adapter.isDisabled(providerId)
-            chk.setOnCheckedChangeListener { _, isChecked ->
-                adapter.setDisabled(providerId, !isChecked)
-            }
+            val chk = container.getChildAt(i).findViewById<CheckBox>(chkId)
+            chk.isChecked = !adapter.isDisabled(providers[i].id)
         }
     }
 
