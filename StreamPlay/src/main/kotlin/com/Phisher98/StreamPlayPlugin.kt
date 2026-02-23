@@ -141,7 +141,7 @@ class StreamPlayPlugin: Plugin() {
         registerExtractorAPI(Maxfinishseveral())
         registerExtractorAPI(Pahe())
         registerExtractorAPI(MegaUp())
-        registerExtractorAPI(oxxxfile())
+        registerExtractorAPI(OxxFile())
         registerExtractorAPI(Hblinks())
         registerExtractorAPI(VidStack())
         registerExtractorAPI(Videostr())

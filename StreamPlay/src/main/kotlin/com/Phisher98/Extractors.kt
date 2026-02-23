@@ -26,6 +26,7 @@ import com.lagradost.cloudstream3.extractors.VidHidePro
 import com.lagradost.cloudstream3.extractors.VidStack
 import com.lagradost.cloudstream3.extractors.VidhideExtractor
 import com.lagradost.cloudstream3.extractors.Voe
+import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.network.WebViewResolver
 import com.lagradost.cloudstream3.newSubtitleFile
 import com.lagradost.cloudstream3.utils.*
@@ -1176,7 +1177,7 @@ class HubCloud : ExtractorApi() {
 }
 
 
-class oxxxfile : ExtractorApi() {
+class OxxFile : ExtractorApi() {
     override val name = "OXXFile"
     override val mainUrl = "https://new.oxxfile.info"
     override val requiresReferer = false
@@ -1187,28 +1188,31 @@ class oxxxfile : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val id = url.substringAfterLast("s/")
-        val api = app.get("$mainUrl/api/s/$id").parsedSafe<oxxfile>() ?: return
+        val cf = CloudflareKiller()
 
-        api.pixeldrainLink?.takeIf { it.isNotBlank() }?.let { pixeldrainUrl ->
-            loadSourceNameExtractor(
-                "OXXFile",
-                pixeldrainUrl,
-                "$mainUrl/",
-                subtitleCallback,
-                callback
-            )
-        }
+        val redirectedUrl = app.get(url, interceptor = cf).url
+        Log.d("Phisher", redirectedUrl)
 
-        api.hubcloudLink.takeIf { it.isNotBlank() }?.let { hubcloudUrl ->
-            loadSourceNameExtractor(
-                "OXXFile",
-                hubcloudUrl,
-                "$mainUrl/",
-                subtitleCallback,
-                callback
-            )
-        }
+        val idIndex = redirectedUrl.indexOf("/s/")
+        if (idIndex == -1) return
+
+        val baseDomain = redirectedUrl.substring(0, idIndex)
+        val id = redirectedUrl.substring(idIndex + 3).substringBefore('/')
+        if (id.isEmpty()) return
+
+        val hubcloudUrl = app.get(
+            "$baseDomain/api/s/$id/hubcloud",
+            interceptor = cf
+        ).url
+
+        Log.d("Phisher", hubcloudUrl)
+
+        loadExtractor(
+            hubcloudUrl,
+            referer ?: baseDomain,
+            subtitleCallback,
+            callback
+        )
     }
 }
 

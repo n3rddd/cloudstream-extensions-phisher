@@ -710,6 +710,7 @@ data class DomainsParser(
     val hubcloud: String,
     val movienestbd: String,
     val movies4u: String,
+    val cinevood: String,
 )
 
 //OXXFile

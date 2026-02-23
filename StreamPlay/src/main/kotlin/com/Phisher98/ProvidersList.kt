@@ -10,6 +10,7 @@ import com.phisher98.StreamPlayExtractor.invoke4khdhub
 import com.phisher98.StreamPlayExtractor.invokeAllMovieland
 import com.phisher98.StreamPlayExtractor.invokeAnimes
 import com.phisher98.StreamPlayExtractor.invokeBollyflix
+import com.phisher98.StreamPlayExtractor.invokeCineVood
 import com.phisher98.StreamPlayExtractor.invokeCinemaOS
 import com.phisher98.StreamPlayExtractor.invokeDahmerMovies
 import com.phisher98.StreamPlayExtractor.invokeEmbedMaster
@@ -276,6 +277,9 @@ fun buildProviders(): List<Provider> {
         },
         Provider("WebStreamr", "WebStreamr") { res, _, callback, token, _ ->
             invokeWebStreamr(res.imdbId, res.season,res.episode,token, callback)
+        },
+        Provider("CineVood", "CineVood (Movies Only)") { res, subtitleCallback, callback, _, _ ->
+            invokeCineVood(res.imdbId, subtitleCallback, callback)
         },
     )
 }

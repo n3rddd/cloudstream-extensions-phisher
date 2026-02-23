@@ -6438,11 +6438,38 @@ object StreamPlayExtractor : StreamPlay() {
                 callback
             )
 
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             Log.e("M4uhd", "invokeM4uhd crash")
         }
     }
 
+    suspend fun invokeCineVood(
+        imdbId: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    ) {
+        val baseUrl = getDomains()?.cinevood ?: return
+        if (imdbId == null) return
+
+        val searchRes = app.get("$baseUrl/?s=$imdbId")
+        val searchDoc = if (searchRes.text.contains("Just a moment", true)) app.get("$baseUrl/?s=$imdbId", interceptor = CloudflareKiller()).document else searchRes.document
+        searchDoc.select("article a[href]")
+            .mapNotNull { it.attr("href").takeIf(String::isNotBlank) }
+            .distinct()
+            .amap { postUrl ->
+
+                val postRes = app.get(postUrl)
+                val postDoc = if (postRes.text.contains("Just a moment", true))
+                    app.get(postUrl, interceptor = CloudflareKiller()).document
+                else postRes.document
+
+                postDoc.select("a.maxbutton[href]")
+                    .mapNotNull { it.attr("href").takeIf(String::isNotBlank) }
+                    .forEach { link ->
+                        loadSourceNameExtractor("CineVood",link,"",subtitleCallback,callback)
+                    }
+            }
+    }
 }
 
 
