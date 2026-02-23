@@ -1177,7 +1177,7 @@ class HubCloud : ExtractorApi() {
 }
 
 
-class OFile : ExtractorApi() {
+class OxxFile : ExtractorApi() {
     override val name = "OXXFile"
     override val mainUrl = "https://new.oxxfile.info"
     override val requiresReferer = false
