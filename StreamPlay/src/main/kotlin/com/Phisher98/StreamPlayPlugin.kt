@@ -67,7 +67,6 @@ class StreamPlayPlugin: Plugin() {
 
         //=====================Extractors=========================//
 
-        registerExtractorAPI(Animefever())
         registerExtractorAPI(Multimovies())
         registerExtractorAPI(MultimoviesSB())
         registerExtractorAPI(Yipsu())
@@ -141,7 +140,6 @@ class StreamPlayPlugin: Plugin() {
         registerExtractorAPI(Maxfinishseveral())
         registerExtractorAPI(Pahe())
         registerExtractorAPI(MegaUp())
-        registerExtractorAPI(OxxFile())
         registerExtractorAPI(Hblinks())
         registerExtractorAPI(VidStack())
         registerExtractorAPI(Videostr())
@@ -178,6 +176,7 @@ class StreamPlayPlugin: Plugin() {
         registerExtractorAPI(mixdrop21())
         registerExtractorAPI(m1xdrop())
         registerExtractorAPI(PpzjYoutube())
+        registerExtractorAPI(OFile())
 
         openSettings = { ctx ->
             val act = ctx as AppCompatActivity

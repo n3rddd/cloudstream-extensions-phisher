@@ -28,11 +28,10 @@ class ToggleFragment(
     private val res: Resources = plugin.resources ?: throw Exception("Unable to access plugin resources")
 
     @SuppressLint("DiscouragedApi")
-    private fun getLayout(name: String, inflater: LayoutInflater, container: ViewGroup?): View {
+    private fun getLayout(name: String, inflater: LayoutInflater, parent: ViewGroup?): View {
         val id = res.getIdentifier(name, "layout", BuildConfig.LIBRARY_PACKAGE_NAME)
-        if (id == 0) throw Exception("Layout $name not found.")
-        val layout = res.getLayout(id)
-        return inflater.inflate(layout, container, false)
+        if (id == 0) throw Resources.NotFoundException("Layout $name not found.")
+        return inflater.inflate(id, parent, false)
     }
 
 
@@ -75,7 +74,7 @@ class ToggleFragment(
 
 
         for (api in apis) {
-            val toggleItem = getLayout("list_toggle_item", inflater, container)
+            val toggleItem = getLayout("list_toggle_item", inflater, extensionList)
             val toggleSwitch = toggleItem.findView<Switch>("toggle_item")
             toggleItem.makeTvCompatible()
             toggleSwitch.text = api.name

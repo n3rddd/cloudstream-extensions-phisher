@@ -688,11 +688,6 @@ class Mwish : Filesim() {
     override var mainUrl = "https://mwish.pro"
 }
 
-class Animefever : Filesim() {
-    override val name = "Animefever"
-    override var mainUrl = "https://animefever.fun"
-}
-
 class Multimovies : Ridoo() {
     override val name = "Multimovies"
     override var mainUrl = "https://multimovies.cloud"
@@ -1177,7 +1172,7 @@ class HubCloud : ExtractorApi() {
 }
 
 
-class OxxFile : ExtractorApi() {
+class OFile : ExtractorApi() {
     override val name = "OXXFile"
     override val mainUrl = "https://new.oxxfile.info"
     override val requiresReferer = false
@@ -1191,12 +1186,10 @@ class OxxFile : ExtractorApi() {
         val cf = CloudflareKiller()
 
         val redirectedUrl = app.get(url, interceptor = cf).url
-        Log.d("Phisher", redirectedUrl)
-
         val idIndex = redirectedUrl.indexOf("/s/")
         if (idIndex == -1) return
 
-        val baseDomain = redirectedUrl.substring(0, idIndex)
+        val baseDomain = redirectedUrl.take(idIndex)
         val id = redirectedUrl.substring(idIndex + 3).substringBefore('/')
         if (id.isEmpty()) return
 
@@ -1204,8 +1197,6 @@ class OxxFile : ExtractorApi() {
             "$baseDomain/api/s/$id/hubcloud",
             interceptor = cf
         ).url
-
-        Log.d("Phisher", hubcloudUrl)
 
         loadExtractor(
             hubcloudUrl,
