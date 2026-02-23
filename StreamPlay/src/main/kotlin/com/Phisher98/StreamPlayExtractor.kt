@@ -2433,7 +2433,7 @@ object StreamPlayExtractor : StreamPlay() {
                     links.amap { link ->
                         val targetHref = link.attr("href")
                         val doc = app.get(targetHref, referer = api, headers = headers).document
-                        val epElement = doc.selectFirst("h4:contains(Episodes):contains($episode)") ?: return@amap
+                        val epElement = doc.selectFirst("h4:contains(Episode):contains($episode)") ?: return@amap
                         val epLink = epElement.nextElementSibling()?.selectFirst("a:matches((?i)(V-Cloud|Single|Episode|G-Direct))")?.attr("href")
                         if (epLink != null) { loadSourceNameExtractor("VegaMovies", epLink, referer = "", subtitleCallback, callback)
                         } else
@@ -2505,7 +2505,7 @@ object StreamPlayExtractor : StreamPlay() {
                         links.amap { link ->
                             val targetHref = link.attr("href")
                             val doc = app.get(targetHref, referer = api, headers = headers).document
-                            val epElement = doc.selectFirst("h4:contains(Episodes):contains($episode)") ?: return@amap
+                            val epElement = doc.selectFirst("h4:contains(Episode):contains($episode)") ?: return@amap
                             val epLink = epElement.nextElementSibling()?.selectFirst("a:matches((?i)(V-Cloud|Single|Episode|G-Direct))")?.attr("href")
                             if (epLink != null) { loadSourceNameExtractor("RogMovies", epLink, referer = "", subtitleCallback, callback)
                            } else
