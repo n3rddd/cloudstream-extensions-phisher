@@ -219,14 +219,15 @@ class ProvidersFragment(
 
             override fun onQueryTextChange(newText: String?): Boolean {
                 val query = newText.orEmpty().trim().lowercase()
+                val chkId = res.getIdentifier("chk_provider", "id", BuildConfig.LIBRARY_PACKAGE_NAME)
 
                 for (i in 0 until container.childCount) {
                     val item = container.getChildAt(i)
-                    val chk = item.findViewById<CheckBox>(
-                        res.getIdentifier("chk_provider", "id", BuildConfig.LIBRARY_PACKAGE_NAME)
-                    )
-                    val isVisible = chk.text.toString().lowercase().contains(query)
-                    item.visibility = if (isVisible) View.VISIBLE else View.GONE
+                    val chk = item.findViewById<CheckBox>(chkId)
+                    if (chk != null) {  // Add null check
+                        val isVisible = chk.text.toString().lowercase().contains(query)
+                        item.visibility = if (isVisible) View.VISIBLE else View.GONE
+                    }
                 }
 
                 return true
