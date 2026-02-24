@@ -3233,3 +3233,97 @@ open class PpzjYoutube : ExtractorApi() {
             .digest(input.toByteArray())
             .joinToString("") { "%02x".format(it) }
 }
+
+class Filesdl : ExtractorApi() {
+    override val name = "Filesdl"
+    override val mainUrl = "https://*.filesdl.site"
+    override val requiresReferer = true
+
+    companion object {
+        private val QUALITY_REGEX = Regex("(\\d{3,4}p)", RegexOption.IGNORE_CASE)
+    }
+
+    override suspend fun getUrl(
+        url: String,
+        referer: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ) {
+        val doc = app.get(url).documentLarge
+
+        val quality = QUALITY_REGEX.find(doc.selectFirst("div.title")?.text().orEmpty())?.value ?: "Unknown"
+        val inferredQuality = getQualityFromName(quality)
+        doc.select("div.container a").amap { element ->
+
+            val source = element.text().trim()
+            val href = element.attr("href")
+
+            when {
+                source.contains("hubcloud", ignoreCase = true) -> {
+                    HubCloud().getUrl(href, "FilmyCab", subtitleCallback, callback)
+                }
+
+                source.contains("GDFLIX", ignoreCase = true) -> {
+                    GDFlix().getUrl(href, "FilmyCab", subtitleCallback, callback)
+                }
+
+                source.contains("Gofile", ignoreCase = true) -> {
+                    Gofile().getUrl(href, "FilmyCab", subtitleCallback, callback)
+                }
+
+                source.contains("Fast Cloud", ignoreCase = true) || source.contains("Ultra Fast Download", ignoreCase = true)-> {
+                    callback(
+                        newExtractorLink(
+                            source = "[Fast Cloud]",
+                            name = "[Fast Cloud]",
+                            url = href,
+                            type = INFER_TYPE
+                        ) {
+                            this.quality = inferredQuality
+                        }
+                    )
+                }
+
+                source.contains("Direct Download", true)
+                        || source.contains("Ultra FastDL", true)
+                        || source.contains("Fast Cloud-02", true) -> {
+
+                    val res = app.get(
+                        href,
+                        allowRedirects = false
+                    )
+
+                    val redirectUrl = res.headers["Location"]
+                        ?: res.headers["location"]
+                        ?: href
+
+                    val finalUrl = fixUrl(redirectUrl, href)
+                    if (
+                        finalUrl.contains(".mkv", true) ||
+                        finalUrl.contains(".mp4", true) ||
+                        finalUrl.contains(".m3u8", true)
+                    ) {
+                        callback(
+                            newExtractorLink(
+                                source = "[FastDL] [VLC]",
+                                name = "FilmyCab [FastDL] [VLC]",
+                                url = finalUrl,
+                                type = INFER_TYPE
+                            ) {
+                                this.quality = inferredQuality
+                            }
+                        )
+                    } else {
+                        loadSourceNameExtractor(
+                            "FilmyCab",
+                            url = finalUrl,
+                            referer = "",
+                            subtitleCallback = subtitleCallback,
+                            callback = callback
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

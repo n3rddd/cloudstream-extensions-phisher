@@ -28,7 +28,7 @@ import org.jsoup.nodes.Element
 
 class Filmyfiy : MainAPI() {
     override var mainUrl: String = runBlocking {
-        FilmyfiyProvider.getDomains()?.Filmyfiy ?: "https://www.filmyfiy.mov"
+        FilmyfiyProvider.getDomains()?.filmyfiy ?: "https://new2.filmyfiy.org"
     }
     override var name = "Filmyfiy"
     override val hasMainPage = true
@@ -38,10 +38,10 @@ class Filmyfiy : MainAPI() {
 
     override val mainPage = mainPageOf(
         "" to "Homepage",
-        "page-3/10/All-Time-Best-Bollywood-Hindi-Movies" to "Bollywood Movies",
+        "page-3/1/New-Bollywood-Hindi-Movies" to "Bollywood Movies",
         "page-3/42/Web-Series" to "Web Series",
         "page-3/58/HQ-Dubbed-Movies-UnCut" to "HQ Dubbed Movies",
-        "page-3/11/South-Hindi-Dubbed-Movies-Collection" to "South Hindi Dubbed Movies",
+        "page-3/21/New-South-Hindi-Dubbed-Movie" to "South Hindi Dubbed Movies",
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {

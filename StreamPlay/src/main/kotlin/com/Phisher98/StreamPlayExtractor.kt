@@ -6470,6 +6470,32 @@ object StreamPlayExtractor : StreamPlay() {
                     }
             }
     }
+
+    suspend fun invokeFilmyfiy(
+        title: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit,
+    ) {
+        val baseUrl = getDomains()?.filmyfiy ?: return
+        val rawQuery = title?.trim() ?: return
+        val query = rawQuery.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val searchDoc = app.get("$baseUrl/site-1.html?to-search=${URLEncoder.encode(rawQuery, "UTF-8")}").document
+        searchDoc.select("div.A2 > a:nth-child(2)[href]").mapNotNull { a ->
+                val href = a.attr("href").takeIf(String::isNotBlank)?.let { if (it.startsWith("http")) it else baseUrl + it } ?: return@mapNotNull null
+                val text = a.text().lowercase().replace(Regex("[^a-z0-9]"), "")
+                if (text.contains(query)) href else null
+        }.distinct().amap { postUrl ->
+                val postDoc = app.get(postUrl).document
+                postDoc.select("div.dlbtn a[href]")
+                    .mapNotNull { it.absUrl("href").takeIf(String::isNotBlank) }.distinct().amap { dlBtnUrl ->
+                        val dlDoc = app.get(dlBtnUrl).document
+                        dlDoc.select("div.dlink a[href]")
+                            .mapNotNull { it.absUrl("href").takeIf(String::isNotBlank) }.distinct().amap { finalUrl ->
+                                loadExtractor(finalUrl, baseUrl, subtitleCallback, callback)
+                            }
+                    }
+            }
+    }
 }
 
 

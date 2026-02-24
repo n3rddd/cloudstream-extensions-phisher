@@ -37,8 +37,7 @@ class DudefilmsPlugin: BasePlugin() {
         }
 
         data class Domains(
-            @JsonProperty("HDHUB4u")
-            val HDHUB4u: String,
+            val dudefilms: String,
         )
     }
 }

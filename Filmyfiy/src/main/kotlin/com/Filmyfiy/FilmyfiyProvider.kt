@@ -33,8 +33,7 @@ class FilmyfiyProvider: BasePlugin() {
         }
 
         data class Domains(
-            @JsonProperty("Filmyfiy")
-            val Filmyfiy: String,
+            val filmyfiy: String,
         )
     }
 }

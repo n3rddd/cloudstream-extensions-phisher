@@ -15,6 +15,7 @@ import com.phisher98.StreamPlayExtractor.invokeCinemaOS
 import com.phisher98.StreamPlayExtractor.invokeDahmerMovies
 import com.phisher98.StreamPlayExtractor.invokeEmbedMaster
 import com.phisher98.StreamPlayExtractor.invokeFilm1k
+import com.phisher98.StreamPlayExtractor.invokeFilmyfiy
 import com.phisher98.StreamPlayExtractor.invokeHdmovie2
 import com.phisher98.StreamPlayExtractor.invokeHexa
 import com.phisher98.StreamPlayExtractor.invokeHindmoviez
@@ -279,7 +280,10 @@ fun buildProviders(): List<Provider> {
             invokeWebStreamr(res.imdbId, res.season,res.episode,token, callback)
         },
         Provider("CineVood", "CineVood (Movies Only)") { res, subtitleCallback, callback, _, _ ->
-            invokeCineVood(res.imdbId, subtitleCallback, callback)
+            if (!res.isAnime) invokeCineVood(res.imdbId, subtitleCallback, callback)
+        },
+        Provider("Filmyfiy", "Filmyfiy (Movies Only)") { res, subtitleCallback, callback, _, _ ->
+            if (!res.isAnime) invokeFilmyfiy(res.title, subtitleCallback, callback)
         },
     )
 }

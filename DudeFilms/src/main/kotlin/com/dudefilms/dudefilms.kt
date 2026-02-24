@@ -28,11 +28,14 @@ import com.lagradost.cloudstream3.utils.AppUtils.toJson
 import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
+import kotlinx.coroutines.runBlocking
 import org.jsoup.nodes.Element
 
 
 class Dudefilms : MainAPI() {
-    override var mainUrl = "https://dudefilms.archi"
+    override var mainUrl: String = runBlocking {
+        DudefilmsPlugin.getDomains()?.dudefilms ?: "https://dudefilms.sarl"
+    }
     override var name = "Dudefilms"
     override var lang = "hi"
     override val hasMainPage = true

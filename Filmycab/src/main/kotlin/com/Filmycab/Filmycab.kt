@@ -11,6 +11,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.fixUrlNull
@@ -27,7 +28,7 @@ import org.jsoup.nodes.Element
 
 class Filmycab : MainAPI() {
     override var mainUrl: String = runBlocking {
-        FilmycabProvider.getDomains()?.Filmycab ?: "https://filmycab.casa"
+        FilmycabProvider.getDomains()?.filmycab ?: "https://filmyfy.fit"
     }
     override var name = "FilmyCab"
     override val hasMainPage = true
@@ -157,7 +158,7 @@ class Filmycab : MainAPI() {
         callback: (ExtractorLink) -> Unit
     ): Boolean {
         val document = app.get(data).documentLarge
-        document.select("div.dlink a").forEach {
+        document.select("div.dlink a").amap {
             val href= it.attr("href")
             if (href.contains("filesdl"))
             {

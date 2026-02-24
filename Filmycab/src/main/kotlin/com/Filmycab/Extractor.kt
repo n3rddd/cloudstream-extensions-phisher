@@ -9,6 +9,7 @@ import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.INFER_TYPE
 import com.lagradost.cloudstream3.utils.Qualities
+import com.lagradost.cloudstream3.utils.fixUrl
 import com.lagradost.cloudstream3.utils.getQualityFromName
 import com.lagradost.cloudstream3.utils.loadExtractor
 import com.lagradost.cloudstream3.utils.newExtractorLink
@@ -20,43 +21,92 @@ import java.nio.charset.StandardCharsets
 
 
 class Filesdl : ExtractorApi() {
-    override val name            = "Filesdl"
-    override val mainUrl         = "https://new6.filesdl.site"
+    override val name = "Filesdl"
+    override val mainUrl = "https://*.filesdl.site"
     override val requiresReferer = true
+
+    companion object {
+        private val QUALITY_REGEX = Regex("(\\d{3,4}p)", RegexOption.IGNORE_CASE)
+    }
 
     override suspend fun getUrl(
         url: String,
         referer: String?,
         subtitleCallback: (SubtitleFile) -> Unit,
-        callback: (ExtractorLink) -> Unit) {
-        val res = app.get(url).documentLarge
-        val titleText = res.select("div.title").text()
-        val qualityRegex = Regex("(\\d{3,4}p)", RegexOption.IGNORE_CASE)
-        val quality = qualityRegex.find(titleText)?.value ?: "Unknown"
-        res.select("div.container a").map {
-            val source = it.text()
-            val href = it.attr("href")
+        callback: (ExtractorLink) -> Unit
+    ) {
+        val doc = app.get(url).documentLarge
+
+        val quality = QUALITY_REGEX.find(doc.selectFirst("div.title")?.text().orEmpty())?.value ?: "Unknown"
+        val inferredQuality = getQualityFromName(quality)
+        doc.select("div.container a").amap { element ->
+
+            val source = element.text().trim()
+            val href = element.attr("href")
+
             when {
+                source.contains("hubcloud", ignoreCase = true) -> {
+                    HubCloud().getUrl(href, "FilmyCab", subtitleCallback, callback)
+                }
 
-                source.contains("Hubcloud", ignoreCase = true) -> HubCloud().getUrl(href,"FilmyCab",subtitleCallback,callback)
+                source.contains("GDFLIX", ignoreCase = true) -> {
+                    GDFlix().getUrl(href, "FilmyCab", subtitleCallback, callback)
+                }
 
-                source.contains("GDFLIX", ignoreCase = true) -> GDFlix().getUrl(href,"",subtitleCallback,callback)
+                source.contains("Gofile", ignoreCase = true) -> {
+                    Gofile().getUrl(href, "FilmyCab", subtitleCallback, callback)
+                }
 
-                source.contains("Gofile", ignoreCase = true) -> Gofile().getUrl(href,"",subtitleCallback,callback)
-
-                source.contains("Direct Download", ignoreCase = true) || source.contains("Ultra FastDL", ignoreCase = true) -> {
-                    val response = app.get(href, allowRedirects = false)
-                    val redirectUrl = response.headers["location"] ?: href
+                source.contains("Fast Cloud", ignoreCase = true) || source.contains("Ultra Fast Download", ignoreCase = true)-> {
                     callback(
                         newExtractorLink(
-                            "[FastDL]",
-                            "FilmyCab [FastDL]",
-                            redirectUrl,
-                            INFER_TYPE
+                            source = "[Fast Cloud]",
+                            name = "[Fast Cloud]",
+                            url = href,
+                            type = INFER_TYPE
                         ) {
-                            this.quality = getQualityFromName(quality)
+                            this.quality = inferredQuality
                         }
                     )
+                }
+
+                source.contains("Direct Download", true)
+                        || source.contains("Ultra FastDL", true)
+                        || source.contains("Fast Cloud-02", true) -> {
+
+                    val res = app.get(
+                        href,
+                        allowRedirects = false
+                    )
+
+                    val redirectUrl = res.headers["Location"]
+                        ?: res.headers["location"]
+                        ?: href
+
+                    val finalUrl = fixUrl(redirectUrl)
+                    if (
+                        finalUrl.contains(".mkv", true) ||
+                        finalUrl.contains(".mp4", true) ||
+                        finalUrl.contains(".m3u8", true)
+                    ) {
+                        callback(
+                            newExtractorLink(
+                                source = "[FastDL] [VLC]",
+                                name = "FilmyCab [FastDL] [VLC]",
+                                url = finalUrl,
+                                type = INFER_TYPE
+                            ) {
+                                this.quality = inferredQuality
+                            }
+                        )
+                    } else {
+                        loadExtractor(
+                            finalUrl,
+                            "",
+                            subtitleCallback,
+                            callback
+                        )
+                    }
                 }
             }
         }
