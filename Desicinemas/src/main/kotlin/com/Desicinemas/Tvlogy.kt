@@ -13,10 +13,12 @@ import com.lagradost.cloudstream3.utils.M3u8Helper.Companion.generateM3u8
 import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.newExtractorLink
 
-class Tvlogyflow(val source:String) : ExtractorApi() {
+class Tvlogyflow(val source: String) : ExtractorApi() {
     override val mainUrl = "https://flow.tvlogy.to"
     override val name = "Tvlogy"
     override val requiresReferer = false
+
+    private val workerUrl = "https://twilight-pine-eba9.phisher1.workers.dev/?url="
 
     override suspend fun getUrl(
         url: String,
@@ -24,50 +26,97 @@ class Tvlogyflow(val source:String) : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val doc = app.get("https://proxy.phisher2.workers.dev/?url=$url", referer = mainUrl).text
-        if (doc.contains(".m3u8")) {
-            Regex("\"src\":\"(.*?)\",\"").find(doc)?.groupValues?.get(1)?.let {
+        try {
+            val workerResponse = app.get("$workerUrl$url").text.trim()
+
+            if (workerResponse.isNotEmpty() &&
+                workerResponse.contains(".m3u8") &&
+                workerResponse.startsWith("http")
+            ) {
+                Log.d("Tvlogy", "Using Worker URL: $workerResponse")
+                val headers = mapOf("user-agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
                 callback(
                     newExtractorLink(
                         "$name $source",
                         name,
-                        url = it,
+                        workerResponse,
                         type = INFER_TYPE
                     ) {
-                        this.referer = url
+                        this.referer = mainUrl
                         this.quality = Qualities.Unknown.value
+                        this.headers = headers
                     }
                 )
+                return
             }
+        } catch (_: Exception) {
+            Log.e("Tvlogy", "Worker failed, falling back")
+        }
+
+        val doc = app.get(
+            "https://proxy.phisher2.workers.dev/?url=$url",
+            referer = mainUrl
+        ).text
+
+        if (doc.contains(".m3u8")) {
+            Regex("\"src\":\"(.*?)\",\"")
+                .find(doc)
+                ?.groupValues
+                ?.get(1)
+                ?.let {
+                    callback(
+                        newExtractorLink(
+                            "$name $source",
+                            name,
+                            it,
+                            type = INFER_TYPE
+                        ) {
+                            this.referer = url
+                            this.quality = Qualities.Unknown.value
+                        }
+                    )
+                }
         } else {
-            val encoded = doc.substringAfter("JuicyCodes.Run(\"").substringBefore("\");")
+            val encoded = doc.substringAfter("JuicyCodes.Run(\"")
+                .substringBefore("\");")
                 .replace("\"", "")
                 .replace("+", "")
                 .replace("\\s".toRegex(), "")
-            val script = base64Decode(encoded)
-            val unpacked = JsUnpacker(script).unpack().toString()
 
-            val matches = Regex("file\":\\s*\"(.*?)\"").findAll(unpacked)
+            val script = base64Decode(encoded)
+
+            val unpacked = JsUnpacker(script)
+                .unpack()
+                .toString()
+
+            val matches = Regex("file\":\\s*\"(.*?)\"")
+                .findAll(unpacked)
+
             matches.forEach { match ->
                 val matched = match.groupValues[1]
-                Log.d("Phisher",matched.toString())
+
+                Log.d("TvlogyFallback", matched)
 
                 when {
-                    !matched.contains(".vtt") -> {
+                    matched.endsWith(".m3u8") -> {
                         generateM3u8(
                             name,
-                            url,
+                            matched,
                             mainUrl
                         ).forEach(callback)
                     }
 
-                    matched.contains(".vtt") -> {
-                        subtitleCallback(newSubtitleFile("Subtitles", url))
+                    matched.endsWith(".vtt") -> {
+                        subtitleCallback(
+                            newSubtitleFile(
+                                "Subtitles",
+                                matched
+                            )
+                        )
                     }
                 }
             }
         }
-
     }
 }
 
