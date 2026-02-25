@@ -22,7 +22,7 @@ cloudstream {
         "Cartoon"
     )
 
-    iconUrl = "https://www.google.com/s2/favicons?domain=animesalt.top&sz=%size%"
+    iconUrl = "https://animesalt.top/wp-content/uploads/AnimeSaltLong.png"
 
     isCrossPlatform = true
 }
