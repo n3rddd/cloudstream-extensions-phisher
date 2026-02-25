@@ -7,6 +7,7 @@ import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
@@ -20,6 +21,7 @@ import com.lagradost.cloudstream3.utils.loadExtractor
 import kotlinx.coroutines.runBlocking
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import java.net.URI
 
 class TamilblastersProvider : MainAPI() {
     override var mainUrl: String = runBlocking {
@@ -107,13 +109,27 @@ class TamilblastersProvider : MainAPI() {
             }
         } else {
             val doc = app.get(data).documentLarge
-            doc.select("iframe").mapNotNull { iframe ->
-                var streamurl = iframe.attr("src")
-                if (streamurl.contains("hg")) {
-                    val secondPart = streamurl.substringAfter("/e")
-                    streamurl = "$streamhg/e/$secondPart"
+            doc.select("iframe").amap { iframe ->
+                val streamurl = iframe.attr("src")
+                val host = runCatching {
+                    URI(streamurl).host?.lowercase()
+                }.getOrNull() ?: ""
+
+                if (host.contains("hg")) {
+                    Hgcloud().getUrl(
+                        streamurl,
+                        mainUrl,
+                        subtitleCallback,
+                        callback
+                    )
+                } else {
+                    loadExtractor(
+                        streamurl,
+                        mainUrl,
+                        subtitleCallback,
+                        callback
+                    )
                 }
-                loadExtractor(streamurl, "$mainUrl/", subtitleCallback, callback)
             }
             return true
         }

@@ -12,7 +12,7 @@ class TamilblastersPlugin: Plugin() {
         // All providers should be added in this manner. Please don't edit the providers list directly.
         registerMainAPI(TamilblastersProvider())
         registerExtractorAPI(Streamhg())
-        registerExtractorAPI(guxhag())
+        registerExtractorAPI(Hgcloud())
     }
 
     companion object {
