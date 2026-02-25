@@ -17,6 +17,7 @@ import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDate
+import com.lagradost.cloudstream3.amap
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.mainPageOf
 import com.lagradost.cloudstream3.newEpisode
@@ -25,6 +26,7 @@ import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
 import com.lagradost.cloudstream3.toNewSearchResponseList
+import com.lagradost.cloudstream3.utils.AppUtils.tryParseJson
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.loadExtractor
 import kotlinx.coroutines.runBlocking
@@ -447,23 +449,40 @@ class HDhub4uProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
-        val linksList: List<String> = data.removePrefix("[").removeSuffix("]").replace("\"", "").split(',', ' ').map { it.trim() }.filter { it.isNotBlank() }
-        for (link in linksList) {
+        val linksList = tryParseJson<List<String>>(data)?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
+        linksList.amap { link ->
             try {
                 val finalLink = if ("?id=" in link) {
                     getRedirectLinks(link)
                 } else {
                     link
                 }
-                if (finalLink.contains("Hubdrive",ignoreCase = true))
-                {
-                    Hubdrive().getUrl(finalLink,"", subtitleCallback,callback)
-                } else loadExtractor(finalLink, subtitleCallback, callback)
+
+                when {
+                    finalLink.contains("Hubdrive", ignoreCase = true) -> {
+                        Hubdrive().getUrl(
+                            finalLink,
+                            referer = "",
+                            subtitleCallback = subtitleCallback,
+                            callback = callback
+                        )
+                    }
+
+                    else -> {
+                        loadExtractor(
+                            finalLink,
+                            subtitleCallback,
+                            callback
+                        )
+                    }
+                }
+
             } catch (e: Exception) {
                 Log.e("Phisher", "Failed to process $link: ${e.message}")
             }
         }
-        return true
+
+        return linksList.isNotEmpty()
     }
 
 
