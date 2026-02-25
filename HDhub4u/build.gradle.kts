@@ -3,7 +3,6 @@ version = 44
 
 
 cloudstream {
-    //description = "Movie website in Bangladesh"
     authors = listOf("Phisher98")
 
     /**
