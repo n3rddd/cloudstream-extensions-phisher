@@ -18,6 +18,7 @@ import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.Score
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDate
@@ -31,8 +32,10 @@ import com.lagradost.cloudstream3.newEpisode
 import com.lagradost.cloudstream3.newHomePageResponse
 import com.lagradost.cloudstream3.newMovieLoadResponse
 import com.lagradost.cloudstream3.newMovieSearchResponse
+import com.lagradost.cloudstream3.newSearchResponseList
 import com.lagradost.cloudstream3.newSubtitleFile
 import com.lagradost.cloudstream3.newTvSeriesLoadResponse
+import com.lagradost.cloudstream3.toNewSearchResponseList
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.INFER_TYPE
@@ -273,9 +276,9 @@ class MovieBoxProvider : MainAPI() {
 
     }
 
-    override suspend fun search(query: String): List<SearchResponse> {
+    override suspend fun search(query: String,page: Int): SearchResponseList {
         val url = "$mainUrl/wefeed-mobile-bff/subject-api/search/v2"
-        val jsonBody = """{"page": 1, "perPage": 10, "keyword": "$query"}"""
+        val jsonBody = """{"page": $page, "perPage": 20, "keyword": "$query"}"""
         val xClientToken = generateXClientToken()
         val xTrSignature = generateXTrSignature("POST", "application/json", "application/json; charset=utf-8", url, jsonBody)
         val headers = mapOf(
@@ -298,7 +301,7 @@ class MovieBoxProvider : MainAPI() {
         val responseBody = response.body.string()
         val mapper = jacksonObjectMapper()
         val root = mapper.readTree(responseBody)
-        val results = root["data"]?.get("results") ?: return emptyList()
+        val results = root.get("data")?.get("results") ?: return newSearchResponseList(emptyList())
         val searchList = mutableListOf<SearchResponse>()
         for (result in results) {
             val subjects = result["subjects"] ?: continue
@@ -324,7 +327,7 @@ class MovieBoxProvider : MainAPI() {
             )
             }
         }
-        return searchList
+        return searchList.toNewSearchResponseList()
     }
 
     override suspend fun load(url: String): LoadResponse {
