@@ -458,7 +458,7 @@ class MovieBoxProvider : MainAPI() {
                             it["season"]?.asInt() == seasonNumber &&
                                     it["episode"]?.asInt() == episodeNumber
                         }
-                        val epName = epMeta?.get("name")?.asText()?.takeIf { it.isNotBlank() } ?: "S${seasonNumber}E${episodeNumber}"
+                        val epName = epMeta?.get("name")?.asText()?: epMeta?.get("title")?.asText() ?.takeIf { it.isNotBlank() } ?: "S${seasonNumber}E${episodeNumber}"
                         val epDesc = epMeta?.get("overview")?.asText() ?: epMeta?.get("description")?.asText() ?: "Season $seasonNumber Episode $episodeNumber"
                         val epThumb = epMeta?.get("thumbnail")?.asText()?.takeIf { it.isNotBlank() } ?: coverUrl
                         val runtime = epMeta?.get("runtime")?.asText()?.filter { it.isDigit() }?.toIntOrNull()
