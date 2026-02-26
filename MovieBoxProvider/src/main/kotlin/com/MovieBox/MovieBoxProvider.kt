@@ -2,6 +2,7 @@ package com.MovieBox
 
 import android.annotation.SuppressLint
 import android.net.Uri
+import android.util.Log
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.lagradost.cloudstream3.Actor
@@ -526,6 +527,7 @@ class MovieBoxProvider : MainAPI() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ): Boolean {
+        Log.d("Phisher",data)
         try {
             val parts = data.split("|")
             val originalSubjectId = when {
@@ -580,6 +582,7 @@ class MovieBoxProvider : MainAPI() {
                     }
                 }
             }
+
             
             // Always add the original subject ID first as the default source with proper language name
             subjectIds.add(0, Pair(originalSubjectId, originalLanguageName))
@@ -708,6 +711,53 @@ class MovieBoxProvider : MainAPI() {
                                     }
                                 }
                                 //hasAnyLinks = true
+                            }
+                        }
+
+
+                        //Ep Miss Match Fix (SplitsVilla used to test)
+                        if (streams == null || !streams.isArray || streams.size() == 0) {
+
+                            val fallbackUrl = "$mainUrl/wefeed-mobile-bff/subject-api/get?subjectId=$subjectId"
+
+                            val fallbackHeaders = headers.toMutableMap().apply {
+                                put("x-tr-signature", generateXTrSignature(
+                                    "GET",
+                                    "application/json",
+                                    "application/json",
+                                    fallbackUrl
+                                ))
+                            }
+
+                            val fallbackResponse = app.get(fallbackUrl, headers = fallbackHeaders)
+
+                            if (fallbackResponse.code == 200) {
+
+                                val fallbackRoot = mapper.readTree(fallbackResponse.body.string())
+                                val detectors = fallbackRoot["data"]?.get("resourceDetectors")
+
+                                detectors?.forEach { detector ->
+
+                                    detector["resolutionList"]?.forEach { video ->
+
+                                        val link = video["resourceLink"]?.asText() ?: return@forEach
+                                        val quality = video["resolution"]?.asInt() ?: 0
+                                        val se = video["se"]?.asInt()
+                                        val ep = video["ep"]?.asInt()
+
+                                        callback.invoke(
+                                            newExtractorLink(
+                                                source = "$name ${language.replace("dub","Audio")}",
+                                                name = "$name S${se}E${ep} ${quality}p (${language.replace("dub","Audio")})",
+                                                url = link,
+                                                type = ExtractorLinkType.VIDEO
+                                            ) {
+                                                this.headers = mapOf("Referer" to mainUrl)
+                                                this.quality = quality
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

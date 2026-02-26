@@ -1,6 +1,5 @@
 package com.phisher98
 
-import android.util.Log
 import com.phisher98.TorraStream.Companion.AnimetoshoAPI
 import com.phisher98.TorraStream.Companion.SubtitlesAPI
 import com.phisher98.TorraStream.Companion.TRACKER_LIST_URL
@@ -619,10 +618,16 @@ suspend fun invokeDebianTorbox(
             .trim()
             .ifBlank { "TorBox" }
 
-        val cache = Regex("""\((.*?)\)""").find(stream.name)
-            ?.groupValues?.get(1)
-            ?.takeIf { it == "Instant" }
-            ?: "TorBox Download"
+        val cache = Regex("""\((.*?)\)""")
+            .find(stream.name)
+            ?.groupValues?.getOrNull(1)
+            ?.let {
+                when {
+                    stream.name.contains("Your Media", true) -> "Your Media"
+                    it.equals("Instant", true) -> "Instant"
+                    else -> "TorBox Download"
+                }
+            } ?: if (stream.name.contains("Your Media", true)) "Your Media" else "TorBox Download"
 
         val displayName = buildString {
             append("TorBox+ | [$cache] | ")
@@ -656,7 +661,7 @@ suspend fun invokeDebianTorbox(
 
         callback(
             newExtractorLink(
-                "$sourceName [$cache]",
+                formatSourceName(sourceName, cache),
                 displayName,
                 url = stream.url,
                 INFER_TYPE
@@ -669,6 +674,11 @@ suspend fun invokeDebianTorbox(
 
 }
 
+fun formatSourceName(sourceName: String, cache: String): String {
+    return if (cache.equals("Your Media", true) &&
+        sourceName.contains("Your Media", true)
+    ) sourceName else "$sourceName [$cache]"
+}
 
 suspend fun invokeUindex(
     uindex: String,
