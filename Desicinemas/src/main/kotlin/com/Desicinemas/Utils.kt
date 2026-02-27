@@ -91,33 +91,95 @@ suspend fun loadCustomExtractor(
 
 suspend fun resolveIframeSrc(initialUrl: String): String? {
     return try {
+        if (initialUrl.isBlank()) return null
+
         val initialResponse = app.get(initialUrl, allowRedirects = false)
 
-        val refreshUrl = initialResponse.documentLarge
+        // Extract meta refresh (case-insensitive handling)
+        val metaContent = initialResponse.documentLarge
             .selectFirst("meta[http-equiv=refresh]")
             ?.attr("content")
-            ?.substringAfter("url=")
-            ?.removeSurrounding("'", "'")
             ?.trim()
-            .takeIf { !it.isNullOrEmpty() }
-            ?: run {
-                println("⚠️ No refresh meta tag found")
-                return null
-            }
+
+        if (metaContent.isNullOrBlank()) {
+            println("⚠️ No refresh meta tag found")
+            return null
+        }
+
+        val rawRefreshUrl = metaContent
+            .substringAfter("url=", "")
+            .substringAfter("URL=", "")
+            .trim()
+            .removeSurrounding("'")
+            .removeSurrounding("\"")
+            .trim()
+
+        if (rawRefreshUrl.isBlank()) {
+            println("⚠️ Refresh URL empty")
+            return null
+        }
+
+        // Normalize refresh URL
+        val refreshUrl = when {
+            rawRefreshUrl.startsWith("http", true) -> rawRefreshUrl
+            rawRefreshUrl.startsWith("//") -> "https:$rawRefreshUrl"
+            rawRefreshUrl.startsWith("/") -> getBaseUrl(initialUrl) + rawRefreshUrl
+            else -> getBaseUrl(initialUrl).trimEnd('/') + "/" + rawRefreshUrl
+        }
+
+        if (!refreshUrl.startsWith("http")) {
+            println("⚠️ Invalid refresh URL: $refreshUrl")
+            return null
+        }
 
         val refreshResponse = app.get(refreshUrl, allowRedirects = false)
-        val cookieHeader = refreshResponse.headers["set-cookie"].orEmpty()
+
+        // Merge all cookies safely
+        val cookieHeader = refreshResponse.headers
+            .values("set-cookie")
+            .joinToString("; ") { it.substringBefore(";") }
+
         val redirectBaseUrl = getBaseUrl(refreshUrl)
-        val finalResponse = app.get(redirectBaseUrl, headers = mapOf("cookie" to cookieHeader))
-        val iframeSrc = finalResponse.documentLarge.selectFirst("iframe")?.attr("src")
+
+        val finalResponse = app.get(
+            redirectBaseUrl,
+            headers = if (cookieHeader.isNotBlank())
+                mapOf("cookie" to cookieHeader)
+            else emptyMap()
+        )
+
+        val rawIframe = finalResponse.documentLarge
+            .selectFirst("iframe")
+            ?.attr("src")
+            ?.trim()
+
+        if (rawIframe.isNullOrBlank()) {
+            println("⚠️ Iframe src not found")
+            return null
+        }
+
+        // Normalize iframe URL
+        val iframeSrc = when {
+            rawIframe.startsWith("http", true) -> rawIframe
+            rawIframe.startsWith("//") -> "https:$rawIframe"
+            rawIframe.startsWith("/") -> getBaseUrl(redirectBaseUrl) + rawIframe
+            else -> getBaseUrl(redirectBaseUrl).trimEnd('/') + "/" + rawIframe
+        }
+
+        if (!iframeSrc.startsWith("http")) {
+            println("⚠️ Invalid iframe URL: $iframeSrc")
+            return null
+        }
+
         println("✅ Found iframe src: $iframeSrc")
         iframeSrc
+
     } catch (e: Exception) {
         println("❌ Error resolving iframe: ${e.message}")
-        e.printStackTrace()
         null
     }
 }
+
 private fun getBaseUrl(url: String): String {
     return try {
         URI(url).let { "${it.scheme}://${it.host}" }
