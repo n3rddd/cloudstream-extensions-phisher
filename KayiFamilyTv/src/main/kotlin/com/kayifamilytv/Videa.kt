@@ -1,5 +1,5 @@
 // Adapted for CloudStream - taken from https://github.com/vargalex/ResolveURL/blob/fix/videa-resolver-add-cookie/script.module.resolveurl/lib/resolveurl/plugins/videa.py
-package com.lagradost.cloudstream3.extractors
+package com.kayifamilytv
 
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.SubtitleFile
@@ -25,10 +25,9 @@ class Videa : ExtractorApi() {
     ) {
         var currentUrl = url
         var key = ""
-        var lastUrl: String? = null
         // Handle redirect loop until we get valid XML
         while (true) {
-            val webUrl = getXmlUrl(currentUrl) { cookie -> /* no-op, cookie not used */ } ?: return
+            val webUrl = getXmlUrl(currentUrl) { _ -> /* no-op, cookie not used */ } ?: return
             val response = app.get(webUrl)
             val rawBytes = response.body.bytes()
 
@@ -53,7 +52,6 @@ class Videa : ExtractorApi() {
             val redirectMatch = """<error.*?"noembed".*>(.*)</error>""".toRegex().find(videaXml)
 
             if (redirectMatch != null && redirectMatch.groupValues[1] != currentUrl) {
-                lastUrl = currentUrl
                 currentUrl = redirectMatch.groupValues[1]
             } else {
                 parseVideoSources(videaXml, callback)
@@ -77,7 +75,7 @@ class Videa : ExtractorApi() {
         val playerUrl = if ("/player" in url) {
             url
         } else {
-            val iframeMatch = """<iframe.*?src="(/player\?[^\"]+)""".toRegex().find(html)
+            val iframeMatch = """<iframe.*?src="(/player\?[^"]+)""".toRegex().find(html)
             iframeMatch?.let { "$mainUrl${it.groupValues[1]}" } ?: return null
         }
 
@@ -94,7 +92,7 @@ class Videa : ExtractorApi() {
 
         // Extract nonce and generate tokens
         val nonceMatch = """_xt\s*=\s*"([^"]+)""".toRegex().find(playerHtml) ?: return null
-        val (s, t, key) = generateTokens(nonceMatch.groupValues[1])
+        val (s, t, _) = generateTokens(nonceMatch.groupValues[1])
 
         // Extract video parameter
         val videoParam = when {
