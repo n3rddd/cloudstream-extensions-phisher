@@ -20,5 +20,5 @@ cloudstream {
 
     iconUrl = "https://raw.githubusercontent.com/phisher98/cloudstream-extensions-phisher/refs/heads/master/KayiFamilyTv/icon.png"
 
-    isCrossPlatform = true
+    isCrossPlatform = false
 }
