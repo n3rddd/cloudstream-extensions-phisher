@@ -1817,7 +1817,6 @@ open class GDFlix : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        val source = ""
         val newUrl = try {
             app.get(url)
                 .documentLarge
@@ -1842,7 +1841,7 @@ open class GDFlix : ExtractorApi() {
                 text.contains("DIRECT DL",ignoreCase = true) -> {
                     val link = anchor.attr("href")
                     callback.invoke(
-                        newExtractorLink("$source GDFlix[Direct]", "$source GDFlix[Direct] [$fileSize]", link) {
+                        newExtractorLink("GDFlix [Direct]", "GDFlix [Direct] [$fileSize]", link) {
                             this.quality = getIndexQuality(fileName)
                         }
                     )
@@ -1858,7 +1857,7 @@ open class GDFlix : ExtractorApi() {
                                     .select("div.mb-4 > a").amap { sourceAnchor ->
                                         val sourceurl = sourceAnchor.attr("href")
                                         callback.invoke(
-                                            newExtractorLink("$source GDFlix[Index]", "$source GDFlix[Index] [$fileSize]", sourceurl) {
+                                            newExtractorLink("GDFlix [Index]", "GDFlix [Index] [$fileSize]", sourceurl) {
                                                 this.quality = getIndexQuality(fileName)
                                             }
                                         )
@@ -1908,7 +1907,7 @@ open class GDFlix : ExtractorApi() {
                                 }
 
                                 callback.invoke(
-                                    newExtractorLink("$source GDFlix[DriveBot]", "$source GDFlix[DriveBot] [$fileSize]", downloadLink) {
+                                    newExtractorLink("GDFlix [DriveBot]", "GDFlix [DriveBot] [$fileSize]", downloadLink) {
                                         this.referer = baseUrl
                                         this.quality = getIndexQuality(fileName)
                                     }
@@ -1927,7 +1926,7 @@ open class GDFlix : ExtractorApi() {
                             .headers["location"]?.substringAfter("url=").orEmpty()
 
                         callback.invoke(
-                            newExtractorLink("$source GDFlix[Instant Download]", "$source GDFlix[Instant Download] [$fileSize]", link) {
+                            newExtractorLink("GDFlix [Instant Download]", "GDFlix [Instant Download] [$fileSize]", link) {
                                 this.quality = getIndexQuality(fileName)
                             }
                         )
@@ -1969,9 +1968,9 @@ open class GDFlix : ExtractorApi() {
                 val sourceurl = app.get("${newUrl.replace("file", "wfile")}?$type")
                     .documentLarge.select("a.btn-success").attr("href")
 
-                if (source.isNotEmpty()) {
+                if (sourceurl.isNotEmpty()) {
                     callback.invoke(
-                        newExtractorLink("$source GDFlix[CF]", "$source GDFlix[CF] [$fileSize]", sourceurl) {
+                        newExtractorLink("GDFlix [CF]", "GDFlix [CF] [$fileSize]", sourceurl) {
                             this.quality = getIndexQuality(fileName)
                         }
                     )
@@ -1984,7 +1983,7 @@ open class GDFlix : ExtractorApi() {
 }
 
 
-class Gofile : ExtractorApi() {
+open class Gofile : ExtractorApi() {
     override val name = "Gofile"
     override val mainUrl = "https://gofile.io"
     override val requiresReferer = false
@@ -1996,58 +1995,81 @@ class Gofile : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
+        val id = Regex("/(?:\\?c=|d/)([\\da-zA-Z-]+)").find(url)?.groupValues?.get(1) ?: return
 
-        try {
-            val id = Regex("/(?:\\?c=|d/)([\\da-zA-Z-]+)").find(url)?.groupValues?.get(1) ?: return
-            val responseText = app.post("$mainApi/accounts").text
-            val json = JSONObject(responseText)
-            val token = json.getJSONObject("data").getString("token")
+        val token = app.post(
+            "$mainApi/accounts",
+        ).parsedSafe<AccountResponse>()?.data?.token ?: return
 
-            val globalJs = app.get("$mainUrl/dist/js/global.js").text
-            val wt = Regex("""appdata\.wt\s*=\s*["']([^"']+)["']""")
-                .find(globalJs)?.groupValues?.getOrNull(1) ?: return
+        val globalRes = app.get("$mainUrl/dist/js/config.js").text
+        val wt = Regex("""appdata\.wt\s*=\s*[\"']([^\"']+)[\"']""").find(globalRes)?.groupValues?.get(1) ?: return
 
-            val responseTextfile = app.get(
-                "$mainApi/contents/$id?wt=$wt",
-                headers = mapOf("Authorization" to "Bearer $token")
-            ).text
+        val headers = mapOf(
+            "Authorization" to "Bearer $token",
+            "X-Website-Token" to wt
+        )
 
-            val fileDataJson = JSONObject(responseTextfile)
+        val parsedResponse = app.get(
+            "$mainApi/contents/$id?contentFilter=&page=1&pageSize=1000&sortField=name&sortDirection=1",
+            headers = headers
+        ).parsedSafe<GofileResponse>()
 
-            val data = fileDataJson.getJSONObject("data")
-            val children = data.getJSONObject("children")
-            val firstFileId = children.keys().asSequence().first()
-            val fileObj = children.getJSONObject(firstFileId)
+        val childrenMap = parsedResponse?.data?.children ?: return
 
-            val link = fileObj.getString("link")
-            val fileName = fileObj.getString("name")
-            val fileSize = fileObj.getLong("size")
-
-            val sizeFormatted = if (fileSize < 1024L * 1024 * 1024) {
-                "%.2f MB".format(fileSize / 1024.0 / 1024)
-            } else {
-                "%.2f GB".format(fileSize / 1024.0 / 1024 / 1024)
-            }
+        for ((_, file) in childrenMap) {
+            if (file.link.isNullOrEmpty() || file.type != "file") continue
+            val fileName = file.name ?: ""
+            val size = file.size ?: 0L
+            val formattedSize = formatBytes(size)
 
             callback.invoke(
                 newExtractorLink(
                     "Gofile",
-                    "Gofile [ $sizeFormatted]",
-                    link
+                    "[Gofile] $fileName [$formattedSize]",
+                    file.link,
+                    ExtractorLinkType.VIDEO
                 ) {
                     this.quality = getQuality(fileName)
                     this.headers = mapOf("Cookie" to "accountToken=$token")
                 }
             )
-        } catch (e: Exception) {
-            Log.e("Gofile", "Error occurred: ${e.message}")
         }
     }
 
-    private fun getQuality(fileName: String?): Int {
-        return Regex("(\\d{3,4})[pP]").find(fileName ?: "")?.groupValues?.getOrNull(1)?.toIntOrNull()
+    private fun getQuality(str: String?): Int {
+        return Regex("(\\d{3,4})[pP]").find(str ?: "")?.groupValues?.getOrNull(1)?.toIntOrNull()
             ?: Qualities.Unknown.value
     }
+
+    private fun formatBytes(bytes: Long): String {
+        return when {
+            bytes < 1024L * 1024 * 1024 -> "%.2f MB".format(bytes.toDouble() / (1024 * 1024))
+            else -> "%.2f GB".format(bytes.toDouble() / (1024 * 1024 * 1024))
+        }
+    }
+
+    data class AccountResponse(
+        @JsonProperty("data") val data: AccountData? = null
+    )
+
+    data class AccountData(
+        @JsonProperty("token") val token: String? = null
+    )
+
+    data class GofileResponse(
+        @JsonProperty("data") val data: GofileData? = null
+    )
+
+    data class GofileData(
+        @JsonProperty("children") val children: Map<String, GofileFile>? = null
+    )
+
+    data class GofileFile(
+        @JsonProperty("type") val type: String? = null,
+        @JsonProperty("name") val name: String? = null,
+        @JsonProperty("link") val link: String? = null,
+        @JsonProperty("size") val size: Long? = 0L
+    )
 }
 
 
