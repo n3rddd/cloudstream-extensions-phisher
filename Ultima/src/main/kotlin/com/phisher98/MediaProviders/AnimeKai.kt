@@ -17,7 +17,7 @@ import kotlin.math.max
 
 class AnimeKaiMediaProvider : MediaProvider() {
     override val name = "AnimeKai"
-    override val domain = "https://animekai.bz"
+    override val domain = "https://anikai.to"
     override val categories = listOf(Category.ANIME)
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -127,22 +127,6 @@ fun extractVideoUrlFromJsonAnimekai(jsonData: String): String {
     val jsonObject = JSONObject(jsonData)
     return jsonObject.getString("url")
 }
-
-data class AnimeKaiM3U8(
-    val sources: List<AnimekaiSource>,
-    val tracks: List<AnimekaiTrack>,
-    val download: String,
-)
-data class AnimekaiSource(
-    val file: String,
-)
-
-data class AnimekaiTrack(
-    val file: String,
-    val label: String?,
-    val kind: String,
-    val default: Boolean?,
-)
 
 data class AnimeKaiResponse(
     @JsonProperty("status") val status: Boolean,
