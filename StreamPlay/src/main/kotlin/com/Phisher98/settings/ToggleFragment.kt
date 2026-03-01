@@ -61,10 +61,8 @@ class ToggleFragment(
 
         val apis = listOf(
             StreamPlay(sharedPref),
-            //StreamPlayLite(),
-            //StreamPlayTorrent(),
             StreamPlayAnime(),
-            StreamPlayStremioCatelog("", "", sharedPref)
+            StreamPlayStremioCatelog("", "StreamPlay-StremioCatelog", sharedPref)
             //StreamplayTorrentAnime()
         )
 
