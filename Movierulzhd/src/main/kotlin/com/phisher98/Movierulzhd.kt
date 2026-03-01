@@ -318,8 +318,7 @@ open class Movierulzhd : MainAPI() {
                                 {
                                     VidStack().getUrl(source,"",subtitleCallback,callback)
                                 }
-                                else
-                                loadExtractor(source, subtitleCallback, callback)
+                                else loadExtractor(source, subtitleCallback, callback)
                             }
                         } catch (e: Exception) {
                             println("Error loading item: ${e.message}")
