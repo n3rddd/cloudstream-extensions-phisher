@@ -80,10 +80,6 @@ class FileMoonSx : Filesim() {
     override val name = "FileMoonSx"
 }
 
-class Vidguardto2 : Vidguardto() {
-    override val mainUrl = "https://listeamed.net"
-}
-
 class CoflixUPN : VidStack() {
     override var mainUrl = "https://coflix.upn.one"
 }

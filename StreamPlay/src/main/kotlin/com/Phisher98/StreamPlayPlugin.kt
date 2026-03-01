@@ -24,7 +24,6 @@ import androidx.core.content.edit
 import com.lagradost.api.Log
 import com.lagradost.cloudstream3.MainActivity
 import com.lagradost.cloudstream3.extractors.FilemoonV2
-import com.lagradost.cloudstream3.extractors.Vidguardto2
 import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
 import org.json.JSONArray

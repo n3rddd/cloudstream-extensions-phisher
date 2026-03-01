@@ -18,7 +18,6 @@ class CoflixProvider: BasePlugin() {
         registerExtractorAPI(Vidmoly())
         registerExtractorAPI(Videzz())
         registerExtractorAPI(Uqload())
-        registerExtractorAPI(Vidguardto2())
         registerExtractorAPI(CoflixUPN())
         registerExtractorAPI(Mivalyo())
         registerExtractorAPI(Voe())
