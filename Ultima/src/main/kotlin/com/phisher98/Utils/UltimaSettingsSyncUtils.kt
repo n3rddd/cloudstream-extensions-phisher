@@ -19,6 +19,7 @@ data class AppSettingsSyncCreds(
     @param:JsonProperty("deviceId") var deviceId: String? = null,
     @param:JsonProperty("backupDevice") var backupDevice: Boolean = false,
     @param:JsonProperty("restoreDevice") var restoreDevice: Boolean = false,
+    @param:JsonProperty("syncStrategy") var syncStrategy: String = "Merge",
 
     // Unified category sync toggles (v2)
     @param:JsonProperty("syncExtensions") var syncExtensions: Boolean = true,
@@ -250,6 +251,19 @@ object UltimaSettingsSyncUtils {
         } catch (e: Exception) {
             Log.e(TAG, "fetchManifest failed: ${e.message}")
             null
+        }
+    }
+
+    suspend fun checkConnection(context: Context): Boolean {
+        val creds = UltimaStorageManager.appSettingsSyncCreds ?: return false
+        if (!creds.isLoggedIn()) return false
+        return try {
+            val url = "${creds.activeUrl}sync/${creds.syncKey}/manifest.json"
+            val res = app.get(url)
+            res.code in 200..299 || res.code == 404
+        } catch (e: Exception) {
+            Log.e(TAG, "checkConnection failed: ${e.message}")
+            false
         }
     }
 

@@ -20,6 +20,7 @@ import kotlinx.coroutines.*
 @CloudstreamPlugin
 class UltimaPlugin : Plugin() {
     var activity: AppCompatActivity? = null
+    var pluginContext: Context? = null
 
     // Track which categories have local changes pending push
     private val dirtyCategories = mutableSetOf<SyncCategory>()
@@ -35,8 +36,8 @@ class UltimaPlugin : Plugin() {
 
     companion object {
         private const val TAG = "UltimaSync"
-        private const val PUSH_DEBOUNCE_MS = 5000L
-        private const val POLL_INTERVAL_MS = 60_000L
+        private const val PUSH_DEBOUNCE_MS = 1000L
+        private const val POLL_INTERVAL_MS = 15_000L
     }
 
     // --- Category Dirty Tracking ---
@@ -64,7 +65,7 @@ class UltimaPlugin : Plugin() {
     // --- Debounced Push ---
 
     private fun scheduleDebouncedPush() {
-        val ctx = activity ?: return
+        val ctx = pluginContext ?: activity ?: return
         val creds = UltimaStorageManager.appSettingsSyncCreds ?: return
         if (!creds.isLoggedIn() || !creds.backupDevice) return
 
@@ -247,8 +248,44 @@ class UltimaPlugin : Plugin() {
     // --- Plugin Lifecycle ---
 
     override fun load(context: Context) {
-        activity = context as AppCompatActivity
+        pluginContext = context.applicationContext
+        activity = context as? AppCompatActivity
         registerMainAPI(Ultima(this))
+
+        // Track foreground/background transitions for auto-pull
+        (context.applicationContext as? android.app.Application)?.registerActivityLifecycleCallbacks(
+            object : android.app.Application.ActivityLifecycleCallbacks {
+                private var startedActivities = 0
+
+                override fun onActivityStarted(act: android.app.Activity) {
+                    if (startedActivities == 0) {
+                        Log.d(TAG, "App returned to foreground — running background pull")
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val currentCreds = UltimaStorageManager.appSettingsSyncCreds
+                                if (currentCreds != null && currentCreds.isLoggedIn() && currentCreds.restoreDevice) {
+                                    pullChangedCategories(context)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Foreground auto-pull failed: ${e.message}")
+                            }
+                        }
+                    }
+                    startedActivities++
+                }
+
+                override fun onActivityStopped(act: android.app.Activity) {
+                    startedActivities--
+                    if (startedActivities < 0) startedActivities = 0
+                }
+
+                override fun onActivityCreated(act: android.app.Activity, savedInstanceState: android.os.Bundle?) {}
+                override fun onActivityResumed(act: android.app.Activity) {}
+                override fun onActivityPaused(act: android.app.Activity) {}
+                override fun onActivitySaveInstanceState(act: android.app.Activity, outState: android.os.Bundle) {}
+                override fun onActivityDestroyed(act: android.app.Activity) {}
+            }
+        )
 
         UltimaStorageManager.currentMetaProviders.forEach { metaProvider ->
             when (metaProvider.first) {
@@ -452,20 +489,44 @@ class UltimaPlugin : Plugin() {
                     UltimaSettingsSyncUtils.pushCategory(context, category, data, hash)
                 }
             } else {
-                // Both have data: merge them
+                // Both have data: respect conflict strategy
                 if (localBackup != null && cloudBackup != null) {
-                    Log.d(TAG, "Merging local and cloud data for ${category.key}")
-                    val mergedBackup = UltimaBackupUtils.mergeBackupFiles(localBackup, cloudBackup)
-                    if (mergedBackup != null) {
-                        // Write merged data locally if restore is enabled
-                        if (isRestore) {
-                            restoreAndReload(context, category, mergedBackup)
+                    val strategy = creds.syncStrategy
+                    Log.d(TAG, "Both have data for ${category.key}. Strategy: $strategy")
+                    when (strategy) {
+                        "Local" -> {
+                            if (isBackup) {
+                                Log.d(TAG, "Local Wins: Pushing local data to cloud for ${category.key}")
+                                val data = localBackup.toJson()
+                                val hash = UltimaBackupUtils.computeHash(data)
+                                UltimaSettingsSyncUtils.pushCategory(context, category, data, hash)
+                            }
                         }
-                        // Push merged data to cloud if backup is enabled
-                        if (isBackup) {
-                            val data = mergedBackup.toJson()
-                            val hash = UltimaBackupUtils.computeHash(data)
-                            UltimaSettingsSyncUtils.pushCategory(context, category, data, hash)
+                        "Cloud" -> {
+                            if (isRestore) {
+                                Log.d(TAG, "Cloud Wins: Restoring cloud data for ${category.key}")
+                                restoreAndReload(context, category, cloudBackup)
+                                val manifest = UltimaSettingsSyncUtils.fetchManifest(context)
+                                val cloudMeta = manifest?.getMeta(category)
+                                if (cloudMeta != null) {
+                                    UltimaStorageManager.setCategoryTimestamp(category, cloudMeta.ts)
+                                    UltimaStorageManager.setCategoryHash(category, cloudMeta.hash)
+                                }
+                            }
+                        }
+                        else -> { // "Merge" / default
+                            Log.d(TAG, "Merging local and cloud data for ${category.key}")
+                            val mergedBackup = UltimaBackupUtils.mergeBackupFiles(localBackup, cloudBackup)
+                            if (mergedBackup != null) {
+                                if (isRestore) {
+                                    restoreAndReload(context, category, mergedBackup)
+                                }
+                                if (isBackup) {
+                                    val data = mergedBackup.toJson()
+                                    val hash = UltimaBackupUtils.computeHash(data)
+                                    UltimaSettingsSyncUtils.pushCategory(context, category, data, hash)
+                                }
+                            }
                         }
                     }
                 }

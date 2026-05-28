@@ -606,11 +606,101 @@ object UltimaBackupUtils {
         )
     }
 
+    private fun mergeResumeWatchingLists(localJson: String, cloudJson: String): String {
+        return try {
+            val localList = mapper.readValue<List<Map<String, Any>>>(localJson)
+            val cloudList = mapper.readValue<List<Map<String, Any>>>(cloudJson)
+
+            val mergedMap = mutableMapOf<Any, Map<String, Any>>()
+
+            localList.forEach { item ->
+                val id = item["id"]
+                if (id != null) {
+                    mergedMap[id] = item
+                }
+            }
+
+            cloudList.forEach { item ->
+                val id = item["id"]
+                if (id != null) {
+                    val existing = mergedMap[id]
+                    if (existing != null) {
+                        val localTime = (existing["updateTime"] as? Number)?.toLong() ?: 0L
+                        val cloudTime = (item["updateTime"] as? Number)?.toLong() ?: 0L
+                        if (cloudTime > localTime) {
+                            mergedMap[id] = item
+                        }
+                    } else {
+                        mergedMap[id] = item
+                    }
+                }
+            }
+
+            mergedMap.values.toList().toJson()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to merge resume watching lists: ${e.message}")
+            cloudJson
+        }
+    }
+
+    private fun mergeRepositoryLists(localJson: String, cloudJson: String): String {
+        return try {
+            val localList = mapper.readValue<List<Map<String, Any>>>(localJson)
+            val cloudList = mapper.readValue<List<Map<String, Any>>>(cloudJson)
+            val mergedList = (localList + cloudList).distinctBy {
+                (it["url"] as? String)?.trim()?.lowercase() ?: ""
+            }
+            mergedList.toJson()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to merge repository lists: ${e.message}")
+            cloudJson
+        }
+    }
+
+    private fun mergeSearchHistory(localJson: String, cloudJson: String): String {
+        return try {
+            val localList = mapper.readValue<List<Any>>(localJson)
+            val cloudList = mapper.readValue<List<Any>>(cloudJson)
+            val mergedList = (localList + cloudList).distinct()
+            mergedList.toJson()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to merge search history lists: ${e.message}")
+            cloudJson
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
     private fun <K, V> mergeMaps(local: Map<K, V>?, cloud: Map<K, V>?): Map<K, V>? {
         if (local == null) return cloud
         if (cloud == null) return local
         val merged = HashMap<K, V>(local)
-        merged.putAll(cloud)
+        
+        cloud.forEach { (key, cloudValue) ->
+            if (key is String && cloudValue is String) {
+                val localValue = local[key] as? String
+                if (localValue != null) {
+                    val mergedValue = when {
+                        key.contains("result_resume_watching") -> {
+                            mergeResumeWatchingLists(localValue, cloudValue)
+                        }
+                        key.equals(REPOSITORIES_KEY, ignoreCase = true) || 
+                        key.equals("plugins_repositories", ignoreCase = true) || 
+                        key.equals("repositories", ignoreCase = true) -> {
+                            mergeRepositoryLists(localValue, cloudValue)
+                        }
+                        key.contains("search_history") -> {
+                            mergeSearchHistory(localValue, cloudValue)
+                        }
+                        else -> cloudValue
+                    }
+                    merged[key] = mergedValue as V
+                } else {
+                    merged[key] = cloudValue
+                }
+            } else {
+                merged[key] = cloudValue
+            }
+        }
         return merged
     }
 

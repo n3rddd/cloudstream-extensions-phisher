@@ -105,6 +105,7 @@
             android:padding="5dp"
             android:layout_marginVertical="5dp" />
 
+
         <!-- Sync Now Button -->
         <Button
             android:id="@+id/sync_now_btn"
@@ -121,6 +122,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text=""
+            android:textSize="13sp"
+            android:textColor="?android:textColorSecondary"
+            android:padding="5dp" />
+
+        <!-- Connection Status Indicator -->
+        <TextView
+            android:id="@+id/db_status_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Connection: Checking..."
             android:textSize="13sp"
             android:textColor="?android:textColorSecondary"
             android:padding="5dp" />

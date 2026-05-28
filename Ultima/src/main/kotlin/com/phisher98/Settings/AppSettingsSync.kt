@@ -136,6 +136,7 @@ class UltimaConfigureAppSettingsSync(private val plugin: UltimaPlugin) : BottomS
                             showToast("Initial sync complete!")
                             refreshDevicesList(settings, inflater, container)
                             updateLastSyncInfo(settings)
+                            updateConnectionStatus(settings, context)
                         }
                     }
                     .setNegativeButton("Reset") { _, _ ->
@@ -145,6 +146,7 @@ class UltimaConfigureAppSettingsSync(private val plugin: UltimaPlugin) : BottomS
                             showToast("Sync credentials removed: ${deleteRes.second ?: "Reset successful"}")
                             refreshDevicesList(settings, inflater, container)
                             updateLastSyncInfo(settings)
+                            updateConnectionStatus(settings, context)
                         }
                     }
                     .show()
@@ -370,10 +372,11 @@ class UltimaConfigureAppSettingsSync(private val plugin: UltimaPlugin) : BottomS
         restoreGeneralCb.setOnCheckedChangeListener(checkboxListener)
         // #endregion
 
-        // Load devices list + last sync info
+        // Load devices list + last sync info + connection status
         activity?.lifecycle?.coroutineScope?.launch {
             refreshDevicesList(settings, inflater, container)
             updateLastSyncInfo(settings)
+            updateConnectionStatus(settings, context)
         }
 
         return settings
@@ -395,6 +398,26 @@ class UltimaConfigureAppSettingsSync(private val plugin: UltimaPlugin) : BottomS
             infoView.text = "No sync data yet"
         } else {
             infoView.text = "Last synced:\n$sb"
+        }
+    }
+
+    private fun updateConnectionStatus(rootView: View, context: Context) {
+        val dbStatusText = rootView.findView<TextView>("db_status_text")
+        val creds = sm.appSettingsSyncCreds
+        if (creds == null || !creds.isLoggedIn()) {
+            dbStatusText.text = "Connection: 🔴 Disconnected (Configure credentials)"
+        } else {
+            dbStatusText.text = "Connection: Checking..."
+            activity?.lifecycle?.coroutineScope?.launch {
+                val isConnected = withContext(Dispatchers.IO) {
+                    UltimaSettingsSyncUtils.checkConnection(context)
+                }
+                if (isConnected) {
+                    dbStatusText.text = "Connection: 🟢 Connected"
+                } else {
+                    dbStatusText.text = "Connection: 🔴 Disconnected"
+                }
+            }
         }
     }
 
